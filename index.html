@@ -5,151 +5,225 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Поиск предметов на Vice City</title>
     <style>
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0; 
-            padding: 20px; 
-            transition: background-color 0.3s, color 0.3s; 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        h2 { 
-            text-align: center; 
+        /* --- Full-Screen Loading Overlay --- */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex; /* Используем flexbox */
+            flex-direction: column; /* Элементы в столбец */
+            align-items: center;
+            justify-content: center;
+            gap: 20px; /* Увеличиваем расстояние между спиннером и текстом */
+            z-index: 1000; /* Перекрывает весь остальной контент */
+            text-align: center;
+            font-size: 20px; /* Увеличиваем размер шрифта */
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: all;
         }
 
-        #search { 
-            display: block; 
-            width: 100%; 
-            max-width: 500px; 
-            margin: 20px auto; 
-            padding: 10px 15px; 
-            font-size: 16px; 
-            border-radius: 8px; 
-            border: 1px solid #ccc; 
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); 
-            box-sizing: border-box; 
-            transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, color 0.3s; 
+        .spinner {
+            border: 6px solid rgba(255, 255, 255, 0.2); /* Увеличиваем толщину */
+            border-left-color: #3498db;
+            border-radius: 50%;
+            width: 40px; /* Увеличиваем размер спиннера */
+            height: 40px;
+            animation: spin 1s linear infinite;
         }
 
-        #search:focus { 
-            border-color: #3498db; 
-            box-shadow: 0 0 8px rgba(52,152,219,0.3); 
-            outline: none; 
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        /* --------------------------------- */
+
+        h2 {
+            text-align: center;
         }
 
-        #results { 
-            list-style: none; 
-            padding: 0; 
-            max-width: 700px; 
-            margin: 0 auto; 
+        #search {
+            display: block;
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, color 0.3s;
         }
 
-        #results li { 
-            margin-bottom: 12px; 
-            padding: 15px; 
-            border-radius: 10px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); 
-            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s; 
-            cursor: pointer; 
+        #search:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+            outline: none;
         }
 
-        #results li:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
+        #results {
+            list-style: none;
+            padding: 0;
+            max-width: 700px;
+            margin: 0 auto;
         }
 
-        .item-name { 
-            font-weight: bold; 
+        #results li {
+            margin-bottom: 12px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s;
         }
 
-        .item-info { 
-            margin-top: 5px; 
-            font-size: 14px; 
+        #results li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
         }
 
-        .price { 
-            font-weight: bold; 
+        .item-name {
+            font-weight: bold;
         }
 
-        .seller { 
-            font-weight: bold; 
+        .item-info {
+            margin-top: 5px;
+            font-size: 14px;
         }
 
-        .avg-prices { 
-            margin-top: 8px; 
-            font-size: 13px; 
-            display: none; 
+        .price {
+            font-weight: bold;
+        }
+
+        .seller {
+            font-weight: bold;
+        }
+
+        .avg-prices {
+            margin-top: 8px;
+            font-size: 13px;
+            display: none;
         }
 
         /* Light Theme */
-        body.light { 
-            background-color: #f0f2f5; 
-            color: #333; 
+        body.light {
+            background-color: #f0f2f5;
+            color: #333;
         }
 
-        body.light #search { 
-            background-color: #fff; 
-            color: #333; 
+        body.light #loading {
+            background-color: rgba(255, 255, 255, 0.95);
+            color: #333;
         }
 
-        body.light #results li { 
-            background-color: #fff; 
-            color: #333; 
+        body.light .spinner {
+            border: 6px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3498db;
         }
 
-        body.light .price { 
-            color: #27ae60; 
+        body.light #search {
+            background-color: #fff;
+            color: #333;
         }
 
-        body.light .seller { 
-            color: #2980b9; 
+        body.light #results li {
+            background-color: #fff;
+            color: #333;
+        }
+
+        body.light .price {
+            color: #27ae60;
+        }
+
+        body.light .seller {
+            color: #2980b9;
         }
 
         /* Dark Theme */
-        body.dark { 
-            background-color: #1e1e1e; 
-            color: #eee; 
+        body.dark {
+            background-color: #1e1e1e;
+            color: #eee;
         }
 
-        body.dark #search { 
-            background-color: #2c2c2c; 
-            color: #eee; 
-            border: 1px solid #555; 
+        body.dark #loading {
+            background-color: rgba(30, 30, 30, 0.95);
+            color: #eee;
         }
 
-        body.dark #results li { 
-            background-color: #2c2c2c; 
-            color: #eee; 
+        body.dark .spinner {
+            border: 6px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #3498db;
         }
 
-        body.dark .price { 
-            color: #2ecc71; 
+        body.dark #search {
+            background-color: #2c2c2c;
+            color: #eee;
+            border: 1px solid #555;
         }
 
-        body.dark .seller { 
-            color: #3498db; 
+        body.dark #results li {
+            background-color: #2c2c2c;
+            color: #eee;
         }
 
-        /* Media Queries */
-        @media (max-width: 600px) { 
-            #search { 
-                font-size: 14px; 
-                padding: 8px 12px; 
-                width: 100%; 
-            } 
+        body.dark .price {
+            color: #2ecc71;
+        }
 
-            #results li { 
-                padding: 12px; 
-            } 
+        body.dark .seller {
+            color: #3498db;
+        }
 
-            .item-info { 
-                font-size: 13px; 
-            } 
+        @media (max-width: 600px) {
+            #search {
+                font-size: 14px;
+                padding: 8px 12px;
+                width: 100%;
+            }
+
+            #results li {
+                padding: 12px;
+            }
+
+            .item-info {
+                font-size: 13px;
+            }
+
+            #loading {
+                font-size: 18px;
+            }
+
+            .spinner {
+                width: 30px;
+                height: 30px;
+                border: 4px solid;
+            }
         }
     </style>
 </head>
 <body>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Проверка прокси и загрузка данных...</p>
+    </div>
+
     <h2>Поиск предметов на Vice City</h2>
-    <input type="text" id="search" placeholder="Введите название предмета">
+    <input type="text" id="search" placeholder="Введите название предмета" disabled>
     <ul id="results"></ul>
 
     <script>
@@ -157,42 +231,31 @@
         document.body.classList.add(prefersDark ? 'dark' : 'light');
 
         const PROXIES = [
+            // 🥇 Наиболее надежные (с точки зрения доступности, хотя могут иметь ограничения)
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/raw?url=',
+            'https://cors-anywhere.herokuapp.com/', // Требует пустого заголовка Origin: null
+            'https://thingproxy.freeboard.io/fetch/',
+            
+            // 🥈 Альтернативные прокси (средняя надежность)
             'https://public.newton.live/cors/?url=',
-            'https://api.allorigins.win/get?url=',
-            'https://api.codetabs.com/v1/tmp/?quest=',
-            'https://crossorigin.me/',
-            'https://cors.io/?',
-            'https://corsmirror.herokuapp.com/?',
-            'https://cors-proxy.mybluemix.net/?url=',
-            'https://jsonp.afeld.me/?url=',
-            'https://jsonp.nodejitsu.com/?url=',
+            'https://api.codetabs.com/v1/proxy/?quest=',
             'https://cors-proxy-service.vercel.app/api?url=',
-            'https://simple-cors-proxy.vercel.app/api?url=',
-            'https://justcors.com/tl_123abc/?url=',
-            'https://uwu-cors-proxy.glitch.me/?url=',
-            'https://yacdn.org/cors/?url=',
-            'https://cors-proxy.elfsight.com/?url=',
-            'https://proxy.cors.sh/?',
+            'https://yacdn.org/cors/?url=', 
+            'https://proxy.cors.sh/?url=',
             'https://api.cors.lol/?url=',
             'https://cors-test.codehappy.dev/?u=',
-            'https://corsproxy-1.herokuapp.com/?u=',
-            'https://corsproxy-2.herokuapp.com/?u=',
-            'https://corsproxy-3.herokuapp.com/?u=',
             'https://fetch-proxy.vercel.app/api?url=',
-            'https://nocors-api.herokuapp.com/?url=',
             'https://allow-any-origin.appspot.com/?url=',
-            'https://anyorigin.herokuapp.com/get?url=',
-            'https://thingproxy.freeboard.io/fetch/',
-            'https://cors.iamilia.me/?url=',
             'https://proxy.xhr.lol/?url=',
-            'https://public-api-cors-proxy.herokuapp.com/api?url=',
-            'https://skipcors.vercel.app/api/?url=',
-            'https://node-cors-proxy.herokuapp.com/?url=',
-            'https://corsenabled.com/?url=',
-            'https://open-cors-proxy.fly.dev/?url=',
-            'https://cloudflare-cors-anywhere.codeforgeek.com/?url='
+            'https://corsproxy.org/?',
+            
+            // 🥉 Дополнительные, но менее стабильные
+            'https://my-cors-proxy.vercel.app/api?url=',
+            'https://noroffcors.herokuapp.com/?u=',
+            'https://crossorigin.me/', // Может не работать
+            'https://cors-enabled.herokuapp.com/?u=',
         ];
-
 
         const ITEMS_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/items_data.json';
         const MARKET_URL = 'https://api.arz.market/api/getSelectedMarketplace/0';
@@ -201,102 +264,172 @@
 
         const resultsElement = document.getElementById('results');
         const searchInput = document.getElementById('search');
+        const loadingDiv = document.getElementById('loading');
 
-        let itemsData = {};
-        let marketData = [];
-        let sellData = {};
-        let buyData = {};
+        let itemsData = {}, marketData = [], sellData = {}, buyData = {};
+        let WORKING_PROXY = null;
+        // Устанавливаем таймаут для каждого прокси (8 секунд)
+        const PROXY_TIMEOUT_MS = 2000; 
+
+        // Вспомогательная функция для обновления текста загрузки
+        const updateLoadingText = (text) => {
+            const spinner = loadingDiv.querySelector('.spinner');
+            // Проверяем, существует ли спиннер, прежде чем его добавлять/использовать
+            if (!spinner) {
+                // Если спиннер был удален (например, из-за ошибки), создаем новый
+                const newSpinner = document.createElement('div');
+                newSpinner.className = 'spinner';
+                loadingDiv.innerHTML = '';
+                loadingDiv.appendChild(newSpinner);
+            } else {
+                loadingDiv.innerHTML = '';
+                loadingDiv.appendChild(spinner);
+            }
+
+            const p = document.createElement('p');
+            p.textContent = text;
+            loadingDiv.appendChild(p);
+        };
+        
+        // Функция для создания промиса таймаута
+        const timeout = (ms) => new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Proxy Timeout')), ms)
+        );
 
         const fetchWithProxies = async (url, decodeWin1251 = false) => {
-            let lastError = null;
-            for (const proxy of PROXIES) {
-                const fullUrl = proxy + encodeURIComponent(url);
-                try {
-                    const res = await fetch(fullUrl);
-                    if (!res.ok) throw new Error(`Status: ${res.status}`);
-                    if (decodeWin1251) {
-                        const buffer = await res.arrayBuffer();
-                        const text = new TextDecoder('windows-1251').decode(buffer);
-                        return JSON.parse(text);
-                    } else {
-                        return await res.json();
-                    }
-                } catch(e) {
-                    lastError = e;
-                    console.warn(`Прокси ${proxy} не сработал`, e);
+            // 1. Быстрый путь: Используем найденный рабочий прокси
+            if (WORKING_PROXY) {
+                const fetchPromise = fetch(WORKING_PROXY + encodeURIComponent(url));
+                const res = await Promise.race([fetchPromise, timeout(PROXY_TIMEOUT_MS)]);
+                if (!res.ok) throw new Error(`Status: ${res.status}`);
+                
+                if (decodeWin1251) {
+                    const buffer = await res.arrayBuffer();
+                    const text = new TextDecoder('windows-1251').decode(buffer);
+                    return JSON.parse(text);
+                } else {
+                    return await res.json();
                 }
             }
-            throw lastError;
-        };
 
-        // Рассчитываем среднюю цену за штуку
-        const calcUnitPrices = (list) => {
-            if (!list || list.length === 0) return [];
-            return list.map(entry => {
-                const date = entry[0];
-                const quantity = entry[1];
-                const totalPrice = entry[2];
-                const unitPrice = quantity > 0 ? Math.round(totalPrice / quantity) : 0;
-                return { date, unitPrice, quantity, totalPrice };
+            // 2. Медленный путь: Параллельная проверка всех прокси
+            updateLoadingText(`Проверка ${PROXIES.length} прокси одновременно (Таймаут: ${PROXY_TIMEOUT_MS/1000}с)...`);
+            
+            const fetchPromises = PROXIES.map(proxy => {
+                // Запускаем каждый fetch с индивидуальным таймаутом
+                return Promise.race([
+                    fetch(proxy + encodeURIComponent(url)),
+                    timeout(PROXY_TIMEOUT_MS)
+                ]).then(res => {
+                    if (!res.ok) throw new Error(`Proxy failed with status: ${res.status}`);
+                    return { res, proxy }; // Возвращаем результат и сам прокси
+                }).catch(e => {
+                    // Обрабатываем ошибки/таймауты тихо, чтобы не прерывать Promise.all
+                    console.warn(`Прокси ${proxy.substring(0, 30)}... не сработал:`, e.message);
+                    return null;
+                });
             });
+
+            // Ждем завершения ВСЕХ промисов (успех или ошибка/таймаут -> null)
+            const results = await Promise.all(fetchPromises);
+            
+            // Находим первый успешный результат
+            const successfulResult = results.find(r => r !== null);
+
+            if (successfulResult) {
+                const { res, proxy } = successfulResult;
+                WORKING_PROXY = proxy;
+                console.log('Рабочий прокси найден:', WORKING_PROXY);
+                updateLoadingText(`Рабочий прокси найден: ${proxy.substring(0, 30)}...`);
+
+                // Декодирование, как в оригинальной функции
+                if (decodeWin1251) {
+                    const buffer = await res.arrayBuffer();
+                    const text = new TextDecoder('windows-1251').decode(buffer);
+                    return JSON.parse(text);
+                } else {
+                    return await res.json();
+                }
+            } else {
+                throw new Error('Все прокси не сработали или истек таймаут.');
+            }
         };
 
-        const formatPrice = (num) => num !== undefined && num !== null ? num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'Нет данных';
+        const calcUnitPrices = list => list?.map(entry => ({
+            date: entry[0],
+            unitPrice: entry[1] > 0 ? Math.round(entry[2] / entry[1]) : 0,
+            quantity: entry[1],
+            totalPrice: entry[2]
+        })) || [];
+
+        const formatPrice = num => num?.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.') || 'Нет данных';
 
         const loadData = async () => {
-            itemsData = await fetchWithProxies(ITEMS_URL);
-            marketData = await fetchWithProxies(MARKET_URL);
-            sellData = await fetchWithProxies(SELL_URL, true);
-            buyData = await fetchWithProxies(BUY_URL, true);
+            try {
+                updateLoadingText('Загрузка данных о предметах...');
+                itemsData = await fetchWithProxies(ITEMS_URL);
+
+                updateLoadingText('Загрузка данных о рынке...');
+                marketData = await fetchWithProxies(MARKET_URL);
+
+                updateLoadingText('Загрузка истории продаж...');
+                sellData = await fetchWithProxies(SELL_URL, true);
+
+                updateLoadingText('Загрузка истории покупок...');
+                buyData = await fetchWithProxies(BUY_URL, true);
+
+                // Скрытие загрузочного экрана с плавным эффектом
+                loadingDiv.style.opacity = '0';
+                setTimeout(() => {
+                    loadingDiv.style.display = 'none';
+                    searchInput.disabled = false;
+                    searchInput.placeholder = 'Введите название предмета';
+                }, 300); // 300ms соответствует transition duration в CSS
+
+            } catch (e) {
+                console.error('Ошибка загрузки данных:', e);
+                updateLoadingText('Не удалось загрузить данные. Попробуйте обновить страницу. (Подробности в консоли)');
+                // Убираем спиннер при ошибке
+                const spinner = loadingDiv.querySelector('.spinner');
+                if (spinner) spinner.style.display = 'none';
+                loadingDiv.style.pointerEvents = 'auto'; // Позволяет пользователю взаимодействовать со страницей, несмотря на ошибку
+            }
         };
 
-        const searchItems = (query) => {
-            const lowerQuery = query.toLowerCase();
+        const searchItems = query => {
+            const q = query.toLowerCase();
             resultsElement.innerHTML = '';
+            if (!q) return;
 
-            if (!query) return;
+            const matches = Object.entries(itemsData).filter(([id, name]) => name.toLowerCase().includes(q));
 
-            const matches = Object.entries(itemsData)
-                .filter(([id, name]) => name.toLowerCase().includes(lowerQuery));
-
-            if (matches.length === 0) {
+            if (!matches.length) {
                 resultsElement.innerHTML = '<li>Совпадений не найдено.</li>';
                 return;
             }
 
             matches.forEach(([id, name]) => {
                 let found = false;
-
                 for (const user of marketData) {
-                    user.items_sell.forEach((itemId, index) => {
+                    user.items_sell.forEach((itemId, i) => {
                         if (String(itemId) === id) {
                             const li = document.createElement('li');
                             li.innerHTML = `<span class="item-name">${name}</span>
-                                <div class="item-info">
-                                    ID: ${id} | Цена: <span class="price">${formatPrice(user.price_sell[index])}</span> | Продавец: <span class="seller">${user.username}</span>
-                                </div>
-                                <div class="avg-prices"></div>`;
-                            
+            <div class="item-info">ID:${id} | Цена:<span class="price">${formatPrice(user.price_sell[i])}</span> | Продавец:<span class="seller">${user.username}</span></div>
+            <div class="avg-prices"></div>`;
                             li.addEventListener('click', () => {
                                 const avgDiv = li.querySelector('.avg-prices');
                                 if (avgDiv.style.display === 'none' || avgDiv.style.display === '') {
                                     const sellList = calcUnitPrices(sellData[name]?.list);
                                     const buyList = calcUnitPrices(buyData[name]?.list);
-
-                                    let avgListHTML = '';
-                                    if (sellList && sellList.length > 0) {
-                                        avgListHTML += '<strong>Продажа:</strong><br>';
-                                        sellList.slice(0,5).forEach(entry => {
-                                            avgListHTML += `${entry.date}: ${formatPrice(entry.unitPrice)} за шт (${entry.quantity} шт, всего ${formatPrice(entry.totalPrice)})<br>`;
-                                        });
+                                    let html = '';
+                                    if (sellList.length > 0) {
+                                        html += '<strong>Продажа:</strong><br>' + sellList.slice(0, 5).map(e => `${e.date}: ${formatPrice(e.unitPrice)} за шт (${e.quantity} шт, всего ${formatPrice(e.totalPrice)})`).join('<br>') + '<br>';
                                     }
-                                    if (buyList && buyList.length > 0) {
-                                        avgListHTML += '<strong>Покупка:</strong><br>';
-                                        buyList.slice(0,5).forEach(entry => {
-                                            avgListHTML += `${entry.date}: ${formatPrice(entry.unitPrice)} за шт (${entry.quantity} шт, всего ${formatPrice(entry.totalPrice)})<br>`;
-                                        });
+                                    if (buyList.length > 0) {
+                                        html += '<strong>Покупка:</strong><br>' + buyList.slice(0, 5).map(e => `${e.date}: ${formatPrice(e.unitPrice)} за шт (${e.quantity} шт, всего ${formatPrice(e.totalPrice)})`).join('<br>') + '<br>';
                                     }
-                                    avgDiv.innerHTML = avgListHTML;
+                                    avgDiv.innerHTML = html;
                                     avgDiv.style.display = 'block';
                                 } else {
                                     avgDiv.style.display = 'none';
@@ -311,29 +444,21 @@
                 if (!found) {
                     const li = document.createElement('li');
                     li.innerHTML = `<span class="item-name">${name}</span>
-                                <div class="item-info">ID: ${id} | Цена: <span class="price">Нет данных о продаже</span></div>
-                                <div class="avg-prices"></div>`;
-                    
+          <div class="item-info">ID:${id} | Цена:<span class="price">Нет данных о продаже</span></div>
+          <div class="avg-prices"></div>`;
                     li.addEventListener('click', () => {
                         const avgDiv = li.querySelector('.avg-prices');
                         if (avgDiv.style.display === 'none' || avgDiv.style.display === '') {
                             const sellList = calcUnitPrices(sellData[name]?.list);
                             const buyList = calcUnitPrices(buyData[name]?.list);
-
-                            let avgListHTML = '';
-                            if (sellList && sellList.length > 0) {
-                                avgListHTML += '<strong>Продажа:</strong><br>';
-                                sellList.slice(0,5).forEach(entry => {
-                                    avgListHTML += `${entry.date}: ${formatPrice(entry.unitPrice)} за шт (${entry.quantity} шт, всего ${formatPrice(entry.totalPrice)})<br>`;
-                                });
+                            let html = '';
+                            if (sellList.length > 0) {
+                                html += '<strong>Продажа:</strong><br>' + sellList.slice(0, 5).map(e => `${e.date}: ${formatPrice(e.unitPrice)} за шт (${e.quantity} шт, всего ${formatPrice(e.totalPrice)})`).join('<br>') + '<br>';
                             }
-                            if (buyList && buyList.length > 0) {
-                                avgListHTML += '<strong>Покупка:</strong><br>';
-                                buyList.slice(0,5).forEach(entry => {
-                                    avgListHTML += `${entry.date}: ${formatPrice(entry.unitPrice)} за шт (${entry.quantity} шт, всего ${formatPrice(entry.totalPrice)})<br>`;
-                                });
+                            if (buyList.length > 0) {
+                                html += '<strong>Покупка:</strong><br>' + buyList.slice(0, 5).map(e => `${e.date}: ${formatPrice(e.unitPrice)} за шт (${e.quantity} шт, всего ${formatPrice(e.totalPrice)})`).join('<br>') + '<br>';
                             }
-                            avgDiv.innerHTML = avgListHTML;
+                            avgDiv.innerHTML = html;
                             avgDiv.style.display = 'block';
                         } else {
                             avgDiv.style.display = 'none';
@@ -344,8 +469,9 @@
             });
         };
 
-        searchInput.addEventListener('input', (e) => searchItems(e.target.value));
+        searchInput.addEventListener('input', e => searchItems(e.target.value));
         document.addEventListener('DOMContentLoaded', loadData);
     </script>
+
 </body>
 </html>
