@@ -313,7 +313,7 @@
             }
 
             // 2. Медленный путь: Параллельная проверка всех прокси
-            updateLoadingText(`Проверка ${PROXIES.length} прокси одновременно (Таймаут: ${PROXY_TIMEOUT_MS/1000}с)...`);
+            updateLoadingText(`Проверка прокси`);
             
             const fetchPromises = PROXIES.map(proxy => {
                 // Запускаем каждый fetch с индивидуальным таймаутом
