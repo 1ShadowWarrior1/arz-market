@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Поиск предметов через прокси</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        #search {
+            display: block;
+            width: 100%;
+            max-width: 500px;
+            margin: 20px auto;
+            padding: 10px 15px;
+            font-size: 16px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+            transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, color 0.3s;
+        }
+
+        #search:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 8px rgba(52,152,219,0.3);
+            outline: none;
+        }
+
+        #results {
+            list-style: none;
+            padding: 0;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        #results li {
+            margin-bottom: 12px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.3s, color 0.3s;
+        }
+
+        #results li:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+
+        .item-name {
+            font-weight: bold;
+        }
+
+        .item-info {
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .price {
+            font-weight: bold;
+        }
+
+        .seller {
+            font-weight: bold;
+        }
+
+        /* Светлая тема */
+        body.light {
+            background-color: #f0f2f5;
+            color: #333;
+        }
+
+        body.light #search {
+            background-color: #fff;
+            color: #333;
+        }
+
+        body.light #results li {
+            background-color: #fff;
+            color: #333;
+        }
+
+        body.light .price {
+            color: #27ae60;
+        }
+
+        body.light .seller {
+            color: #2980b9;
+        }
+
+        body.dark {
+            background-color: #1e1e1e;
+            color: #eee;
+        }
+
+        body.dark #search {
+            background-color: #2c2c2c;
+            color: #eee;
+            border: 1px solid #555;
+        }
+
+        body.dark #results li {
+            background-color: #2c2c2c;
+            color: #eee;
+        }
+
+        body.dark .price {
+            color: #2ecc71;
+        }
+
+        body.dark .seller {
+            color: #3498db;
+        }
+
+        @media (max-width: 600px) {
+            #search {
+                font-size: 14px;
+                padding: 8px 12px;
+            }
+
+            #results li {
+                padding: 12px;
+            }
+
+            .item-info {
+                font-size: 13px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>Поиск предметов</h2>
+    <input type="text" id="search" placeholder="Введите название предмета">
+    <ul id="results"></ul>
+
+    <script>
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.classList.add(prefersDark ? 'dark' : 'light');
+
+        const ITEMS_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/items_data.json';
+        const MARKET_URL = 'https://api.arz.market/api/getSelectedMarketplace/0';
+        const PROXIES = [
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/raw?url=', 
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://yacdn.org/proxy/',
+            'https://proxy.cors.sh/',
+        ];
+
+        const resultsElement = document.getElementById('results');
+        const searchInput = document.getElementById('search');
+
+        let itemsData = {};
+        let marketData = [];
+
+        const fetchWithProxies = async (url) => {
+            let lastError = null;
+            for (const proxy of PROXIES) {
+                const fullUrl = proxy + encodeURIComponent(url);
+                try {
+                    const res = await fetch(fullUrl);
+                    if (!res.ok) throw new Error(`Status: ${res.status}`);
+                    return await res.json();
+                } catch (e) {
+                    lastError = e;
+                    console.warn(`Прокси ${proxy} не сработал`, e);
+                }
+            }
+            throw lastError;
+        };
+
+        const formatPrice = (num) => {
+            if (num === undefined || num === null) return 'Нет данных о продаже';
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        };
+
+        const loadData = async () => {
+            itemsData = await fetchWithProxies(ITEMS_URL);
+            const marketJson = await fetchWithProxies(MARKET_URL);
+            marketData = marketJson.map(user => ({
+                username: user.username,
+                items_sell: user.items_sell || [],
+                price_sell: user.price_sell || []
+            }));
+        };
+
+        const searchItems = (query) => {
+            const lowerQuery = query.toLowerCase();
+            resultsElement.innerHTML = '';
+
+            if (!query) return;
+
+            const matches = Object.entries(itemsData)
+                .filter(([id, name]) => name.toLowerCase().includes(lowerQuery));
+
+            if (matches.length === 0) {
+                resultsElement.innerHTML = '<li>Совпадений не найдено.</li>';
+                return;
+            }
+
+            matches.forEach(([id, name]) => {
+                let found = false;
+
+                for (const user of marketData) {
+                    user.items_sell.forEach((itemId, index) => {
+                        if (String(itemId) === id) {
+                            const li = document.createElement('li');
+                            li.innerHTML = `<span class="item-name">${name}</span>
+                                            <div class="item-info">ID: ${id} | Цена: <span class="price">${formatPrice(user.price_sell[index])}</span> | Продавец: <span class="seller">${user.username}</span></div>`;
+                            resultsElement.appendChild(li);
+                            found = true;
+                        }
+                    });
+                }
+
+                if (!found) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span class="item-name">${name}</span>
+                                    <div class="item-info">ID: ${id} | Цена: <span class="price">Нет данных о продаже</span></div>`;
+                    resultsElement.appendChild(li);
+                }
+            });
+        };
+
+        searchInput.addEventListener('input', (e) => {
+            searchItems(e.target.value);
+        });
+
+        document.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
