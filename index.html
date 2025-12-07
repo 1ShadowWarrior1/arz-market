@@ -27,6 +27,7 @@
             border: 1px solid #ccc;
             box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
             transition: border-color 0.3s, box-shadow 0.3s, background-color 0.3s, color 0.3s;
+            box-sizing: border-box; /* добавлено, чтобы ширина учитывала padding и не вылезала */
         }
 
         #search:focus {
@@ -124,6 +125,8 @@
             #search {
                 font-size: 14px;
                 padding: 8px 12px;
+                width: 100%; /* гарантируем, что строка поиска не вылезет за экран */
+                box-sizing: border-box;
             }
 
             #results li {
