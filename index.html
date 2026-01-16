@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Поиск предметов на Vice City</title>
     <style>
+        /* Оставляем стили без изменений */
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -226,31 +227,8 @@
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.body.classList.add(prefersDark ? 'dark' : 'light');
 
-        const PROXIES = [
-            'https://withered-pine-c949.a321s7051.workers.dev/?url=',
-            'https://corsproxy.io/?',
-            'https://api.allorigins.win/raw?url=',
-            'https://cors-anywhere.herokuapp.com/',
-            'https://thingproxy.freeboard.io/fetch/',
-            
-            'https://public.newton.live/cors/?url=',
-            'https://api.codetabs.com/v1/proxy/?quest=',
-            'https://cors-proxy-service.vercel.app/api?url=',
-            'https://yacdn.org/cors/?url=', 
-            'https://proxy.cors.sh/?url=',
-            'https://api.cors.lol/?url=',
-            'https://cors-test.codehappy.dev/?u=',
-            'https://fetch-proxy.vercel.app/api?url=',
-            'https://allow-any-origin.appspot.com/?url=',
-            'https://proxy.xhr.lol/?url=',
-            'https://corsproxy.org/?',
-            
-            'https://my-cors-proxy.vercel.app/api?url=',
-            'https://noroffcors.herokuapp.com/?u=',
-            'https://crossorigin.me/',
-            'https://cors-enabled.herokuapp.com/?u=',
-        ];
-
+        // Используем наш локальный Flask-сервер в качестве прокси
+        const CORS_PROXY = '/proxy/';
         const ITEMS_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/items_data.json';
         const MARKET_URL = 'https://api.arz.market/api/getSelectedMarketplace/0';
         const SELL_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/avg_price/info_users_sell_vc.json';
@@ -261,8 +239,6 @@
         const loadingDiv = document.getElementById('loading');
 
         let itemsData = {}, marketData = [], sellData = {}, buyData = {};
-        let WORKING_PROXY = null;
-        const PROXY_TIMEOUT_MS = 5000; 
 
         const updateLoadingText = (text) => {
             const spinner = loadingDiv.querySelector('.spinner');
@@ -281,57 +257,43 @@
             loadingDiv.appendChild(p);
         };
         
-        const timeout = (ms) => new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Proxy Timeout')), ms)
-        );
-
-        const fetchWithProxies = async (url, decodeWin1251 = false) => {
-            if (WORKING_PROXY) {
-                const fetchPromise = fetch(WORKING_PROXY + encodeURIComponent(url));
-                const res = await Promise.race([fetchPromise, timeout(PROXY_TIMEOUT_MS)]);
-                if (!res.ok) throw new Error(`Status: ${res.status}`);
+        // Функция для получения данных через CORS-прокси
+        const fetchData = async (url, decodeWin1251 = false) => {
+            try {
+                // Сначала пробуем без прокси
+                const response = await fetch(url);
+                if (response.ok) {
+                    if (decodeWin1251) {
+                        const buffer = await response.arrayBuffer();
+                        const text = new TextDecoder('windows-1251').decode(buffer);
+                        return JSON.parse(text);
+                    } else {
+                        return await response.json();
+                    }
+                }
+            } catch (e) {
+                console.log(`Прямой запрос не удался, пробуем через прокси: ${e.message}`);
+            }
+            
+            // Если прямой запрос не удался, используем CORS-прокси
+            try {
+                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
+                const response = await fetch(proxyUrl);
+                if (!response.ok) {
+                    throw new Error(`Proxy error! Status: ${response.status}`);
+                }
                 
                 if (decodeWin1251) {
-                    const buffer = await res.arrayBuffer();
+                    // Для win1251 декодирования нужно получить ArrayBuffer
+                    const buffer = await response.arrayBuffer();
                     const text = new TextDecoder('windows-1251').decode(buffer);
                     return JSON.parse(text);
                 } else {
-                    return await res.json();
+                    return await response.json();
                 }
-            }
-
-            updateLoadingText(`Проверка прокси`);
-            
-            const fetchPromises = PROXIES.map(proxy => {
-                return Promise.race([
-                    fetch(proxy + encodeURIComponent(url)),
-                    timeout(PROXY_TIMEOUT_MS)
-                ]).then(res => {
-                    if (!res.ok) throw new Error(`Proxy failed with status: ${res.status}`);
-                    return { res, proxy };
-                }).catch(e => {
-                    return null;
-                });
-            });
-
-            const results = await Promise.all(fetchPromises);
-            
-            const successfulResult = results.find(r => r !== null);
-
-            if (successfulResult) {
-                const { res, proxy } = successfulResult;
-                WORKING_PROXY = proxy;
-                updateLoadingText(`Рабочий прокси найден: ${proxy.substring(0, 30)}...`);
-
-                if (decodeWin1251) {
-                    const buffer = await res.arrayBuffer();
-                    const text = new TextDecoder('windows-1251').decode(buffer);
-                    return JSON.parse(text);
-                } else {
-                    return await res.json();
-                }
-            } else {
-                throw new Error('Все прокси не сработали или истек таймаут.');
+            } catch (e) {
+                console.error(`Ошибка при получении данных: ${url}`, e);
+                throw e;
             }
         };
 
@@ -347,16 +309,16 @@
         const loadData = async () => {
             try {
                 updateLoadingText('Загрузка данных о предметах...');
-                itemsData = await fetchWithProxies(ITEMS_URL);
+                itemsData = await fetchData(ITEMS_URL);
 
                 updateLoadingText('Загрузка данных о рынке...');
-                marketData = await fetchWithProxies(MARKET_URL);
+                marketData = await fetchData(MARKET_URL);
 
                 updateLoadingText('Загрузка истории продаж...');
-                sellData = await fetchWithProxies(SELL_URL, true);
+                sellData = await fetchData(SELL_URL, true);
 
                 updateLoadingText('Загрузка истории покупок...');
-                buyData = await fetchWithProxies(BUY_URL, true);
+                buyData = await fetchData(BUY_URL, true);
 
                 loadingDiv.style.opacity = '0';
                 setTimeout(() => {
@@ -366,19 +328,17 @@
                 }, 300);
 
             } catch (e) {
-                updateLoadingText('Не удалось загрузить данные. Попробуйте обновить страницу.');
+                console.error('Ошибка при загрузке данных:', e);
+                updateLoadingText('Не удалось загрузить данные. Проверьте подключение к интернету.');
                 const spinner = loadingDiv.querySelector('.spinner');
                 if (spinner) spinner.style.display = 'none';
                 loadingDiv.style.pointerEvents = 'auto';
             }
         };
 
-        const searchItems = query => {
-            const q = query.toLowerCase();
+        // Функция для отображения всех результатов на одной странице
+        const displayResults = (matches) => {
             resultsElement.innerHTML = '';
-            if (!q) return;
-
-            const matches = Object.entries(itemsData).filter(([id, name]) => name.toLowerCase().includes(q));
 
             if (!matches.length) {
                 resultsElement.innerHTML = '<li>Совпадений не найдено.</li>';
@@ -386,7 +346,6 @@
             }
 
             const foundItems = [];
-            const itemsWithNoSale = new Set();
 
             matches.forEach(([id, name]) => {
                 let foundSale = false;
@@ -405,10 +364,6 @@
                             foundSale = true;
                         }
                     });
-                }
-
-                if (!foundSale) {
-                    itemsWithNoSale.add(id);
                 }
             });
             
@@ -441,36 +396,39 @@
 
                 resultsElement.appendChild(li);
             });
-            
-            itemsWithNoSale.forEach(id => {
-                const name = itemsData[id];
-                const li = document.createElement('li');
-                li.innerHTML = `<span class="item-name">${name}</span>
-            <div class="item-info">ID:${id} | Цена:<span class="price">Нет данных о продаже</span></div>
-            <div class="avg-prices"></div>`;
-                li.addEventListener('click', () => {
-                    const avgDiv = li.querySelector('.avg-prices');
-                    if (avgDiv.style.display === 'none' || avgDiv.style.display === '') {
-                        const sellList = calcUnitPrices(sellData[name]?.list);
-                        const buyList = calcUnitPrices(buyData[name]?.list);
-                        let html = '';
-                        if (sellList.length > 0) {
-                            html += '<strong>Продажа:</strong><br>' + sellList.slice(0, 5).map(e => `${e.date}: ${formatPrice(e.unitPrice)} за шт (${e.quantity} шт, всего ${formatPrice(e.totalPrice)})`).join('<br>') + '<br>';
-                        }
-                        if (buyList.length > 0) {
-                            html += '<strong>Покупка:</strong><br>' + buyList.slice(0, 5).map(e => `${e.date}: ${formatPrice(e.unitPrice)} за шт (${e.quantity} шт, всего ${formatPrice(e.totalPrice)})`).join('<br>') + '<br>';
-                        }
-                        avgDiv.innerHTML = html;
-                        avgDiv.style.display = 'block';
-                    } else {
-                        avgDiv.style.display = 'none';
-                    }
-                });
-                resultsElement.appendChild(li);
-            });
         };
 
-        searchInput.addEventListener('input', e => searchItems(e.target.value));
+        // Функция поиска без пагинации
+        const searchItems = (query) => {
+            const q = query.toLowerCase();
+            resultsElement.innerHTML = '';
+            
+            if (!q) {
+                return;
+            }
+
+            // Фильтруем все совпадения
+            const matches = Object.entries(itemsData).filter(([id, name]) => name.toLowerCase().includes(q));
+
+            if (!matches.length) {
+                resultsElement.innerHTML = '<li>Совпадений не найдено.</li>';
+                return;
+            }
+
+            // Отображаем все результаты
+            displayResults(matches);
+        };
+
+        // Добавим debounce для поискового ввода
+        let searchTimeout;
+        const debouncedSearch = (query) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                searchItems(query);
+            }, 300); // Задержка 300мс перед выполнением поиска
+        };
+
+        searchInput.addEventListener('input', e => debouncedSearch(e.target.value));
         document.addEventListener('DOMContentLoaded', loadData);
     </script>
 
