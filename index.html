@@ -227,8 +227,12 @@
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.body.classList.add(prefersDark ? 'dark' : 'light');
 
-        // Используем публичный CORS-прокси
-        const CORS_PROXY = 'https://corsproxy.io/?';
+        // Публичные CORS-прокси (пробуем несколько вариантов)
+        const CORS_PROXIES = [
+            'https://thingproxy.freeboard.io/fetch/',
+            'https://api.codetabs.com/v1/proxy?query=',
+            ''
+        ];
         const ITEMS_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/items_data.json';
         const MARKET_URL = 'https://api.arz.market/api/getSelectedMarketplace/0';
         const SELL_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/avg_price/info_users_sell_vc.json';
@@ -257,26 +261,34 @@
             loadingDiv.appendChild(p);
         };
         
-        // Функция для получения данных через CORS-прокси
+        // Функция для получения данных с перебором прокси
         const fetchData = async (url, decodeWin1251 = false) => {
-            try {
-                const proxyUrl = CORS_PROXY + encodeURIComponent(url);
-                const response = await fetch(proxyUrl);
-                if (!response.ok) {
-                    throw new Error(`Proxy error! Status: ${response.status}`);
-                }
+            let lastError;
+            
+            for (const proxy of CORS_PROXIES) {
+                try {
+                    const requestUrl = proxy ? proxy + encodeURIComponent(url) : url;
+                    const response = await fetch(requestUrl);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Status: ${response.status}`);
+                    }
 
-                if (decodeWin1251) {
-                    const buffer = await response.arrayBuffer();
-                    const text = new TextDecoder('windows-1251').decode(buffer);
-                    return JSON.parse(text);
-                } else {
-                    return await response.json();
+                    if (decodeWin1251) {
+                        const buffer = await response.arrayBuffer();
+                        const text = new TextDecoder('windows-1251').decode(buffer);
+                        return JSON.parse(text);
+                    } else {
+                        return await response.json();
+                    }
+                } catch (e) {
+                    console.warn(`Не удалось через ${proxy || 'прямой'}: ${e.message}`);
+                    lastError = e;
                 }
-            } catch (e) {
-                console.error(`Ошибка при получении данных: ${url}`, e);
-                throw e;
             }
+            
+            console.error(`Все способы не удались: ${url}`);
+            throw lastError;
         };
 
         const calcUnitPrices = list => list?.map(entry => ({
