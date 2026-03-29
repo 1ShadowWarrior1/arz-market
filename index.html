@@ -228,7 +228,7 @@
         document.body.classList.add(prefersDark ? 'dark' : 'light');
 
         // Используем публичный CORS-прокси
-        const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+        const CORS_PROXY = 'https://corsproxy.io/?';
         const ITEMS_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/items_data.json';
         const MARKET_URL = 'https://api.arz.market/api/getSelectedMarketplace/0';
         const SELL_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/avg_price/info_users_sell_vc.json';
@@ -266,16 +266,12 @@
                     throw new Error(`Proxy error! Status: ${response.status}`);
                 }
 
-                const data = await response.json();
-                // allorigins.win возвращает { contents: "...", status: "..." }
-                const content = data.contents;
-                
                 if (decodeWin1251) {
-                    // Для win1251 декодирования преобразуем base64 или текст
-                    const text = decodeURIComponent(escape(atob(content)));
+                    const buffer = await response.arrayBuffer();
+                    const text = new TextDecoder('windows-1251').decode(buffer);
                     return JSON.parse(text);
                 } else {
-                    return JSON.parse(content);
+                    return await response.json();
                 }
             } catch (e) {
                 console.error(`Ошибка при получении данных: ${url}`, e);
