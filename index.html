@@ -227,12 +227,16 @@
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.body.classList.add(prefersDark ? 'dark' : 'light');
 
-        // Публичные CORS-прокси (пробуем несколько вариантов)
-        const CORS_PROXIES = [
+        // Публичные CORS-прокси
+        // GitHub Raw поддерживает CORS, поэтому для него прямой запрос
+        // Для api.arz.market нужен прокси (не поддерживает CORS)
+        const GITHUB_PROXY = '';  // прямой запрос
+        const MARKET_PROXIES = [
             'https://thingproxy.freeboard.io/fetch/',
             'https://api.codetabs.com/v1/proxy?query=',
-            ''
+            'https://corsproxy.io/?'
         ];
+        
         const ITEMS_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/items_data.json';
         const MARKET_URL = 'https://api.arz.market/api/getSelectedMarketplace/0';
         const SELL_URL = 'https://raw.githubusercontent.com/FREYM1337/forumnick/main/avg_price/info_users_sell_vc.json';
@@ -262,10 +266,11 @@
         };
         
         // Функция для получения данных с перебором прокси
-        const fetchData = async (url, decodeWin1251 = false) => {
+        const fetchData = async (url, decodeWin1251 = false, useMarketProxies = false) => {
+            const proxies = useMarketProxies ? MARKET_PROXIES : [GITHUB_PROXY];
             let lastError;
             
-            for (const proxy of CORS_PROXIES) {
+            for (const proxy of proxies) {
                 try {
                     const requestUrl = proxy ? proxy + encodeURIComponent(url) : url;
                     const response = await fetch(requestUrl);
@@ -306,7 +311,7 @@
                 itemsData = await fetchData(ITEMS_URL);
 
                 updateLoadingText('Загрузка данных о рынке...');
-                marketData = await fetchData(MARKET_URL);
+                marketData = await fetchData(MARKET_URL, false, true);  // useMarketProxies = true
 
                 updateLoadingText('Загрузка истории продаж...');
                 sellData = await fetchData(SELL_URL, true);
